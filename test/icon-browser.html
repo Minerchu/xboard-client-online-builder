@@ -1,0 +1,44 @@
+<!doctype html><html><head><meta charset="utf-8"><script src="../icon.js"></script></head><body><pre id="results">RUNNING</pre><textarea id="ico" hidden></textarea><script>
+(async () => {
+  const results = [];
+  function assert(value, message) { if (!value) throw Error(message); }
+  async function fixture(width, height, type) {
+    const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+    const context = canvas.getContext('2d'); context.fillStyle = '#ff0000'; context.fillRect(0, 0, width, height);
+    const size = Math.min(width, height); context.fillStyle = '#00ff00'; context.fillRect((width - size) / 2, (height - size) / 2, size, size);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, type));
+    return new File([blob], 'test-image', { type: blob.type });
+  }
+  async function check(platform, width, height, type) {
+    const converted = await prepareIcon(await fixture(width, height, type), platform);
+    const bytes = new Uint8Array(await converted.blob.arrayBuffer());
+    let png = converted.blob;
+    if (platform === 'windows') {
+      const view = new DataView(bytes.buffer);
+      assert(view.getUint16(2, true) === 1 && view.getUint16(4, true) === 1, 'Invalid ICO header');
+      assert(view.getUint32(18, true) === 22 && view.getUint32(14, true) === bytes.length - 22, 'Invalid ICO directory');
+      png = new Blob([bytes.slice(22)], { type: 'image/png' });
+      document.getElementById('ico').textContent = converted.base64;
+    }
+    const image = await createImageBitmap(png), size = platform === 'windows' ? 256 : 512;
+    assert(image.width === size && image.height === size, 'Invalid output dimensions');
+    const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
+    const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+    const pixel = context.getImageData(10, 10, 1, 1).data;
+    assert(pixel[1] > 240 && pixel[0] < 15, 'Crop did not preserve middle square');
+    assert(converted.blob.size <= 1048576, 'Output exceeds backend limit');
+    results.push('PASS ' + platform + ' ' + type + ' ' + width + 'x' + height);
+  }
+  try {
+    for (const platform of ['windows', 'android']) {
+      for (const type of ['image/jpeg', 'image/png', 'image/webp']) await check(platform, 360, 120, type);
+      await check(platform, 120, 360, 'image/jpeg');
+      await check(platform, 64, 64, 'image/png');
+    }
+    let rejected = false;
+    try { await prepareIcon(new File(['not an image'], 'bad.png'), 'android'); } catch { rejected = true; }
+    assert(rejected, 'Invalid input was accepted'); results.push('PASS invalid file rejected');
+    const target = document.getElementById('results'); target.textContent = results.join('\n'); target.dataset.state = 'passed';
+  } catch (error) { document.getElementById('results').textContent = 'FAIL ' + error.message; document.getElementById('results').dataset.state = 'failed'; }
+})();
+</script></body></html>

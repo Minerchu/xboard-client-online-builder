@@ -7,6 +7,7 @@ const android = require('./android/server');
 const page = fs.readFileSync(path.join(__dirname, 'index.html'));
 const style = fs.readFileSync(path.join(__dirname, 'style.css'));
 const script = fs.readFileSync(path.join(__dirname, 'app.js'));
+const iconScript = fs.readFileSync(path.join(__dirname, 'icon.js'));
 
 const server = http.createServer((req, res) => {
   const route = new URL(req.url, 'http://localhost').pathname;
@@ -14,9 +15,9 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
     return res.end(page);
   }
-  if (req.method === 'GET' && (route === '/style.css' || route === '/app.js')) {
+  if (req.method === 'GET' && ['/style.css', '/app.js', '/icon.js'].includes(route)) {
     res.writeHead(200, { 'Content-Type': route.endsWith('.css') ? 'text/css; charset=utf-8' : 'application/javascript; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
-    return res.end(route.endsWith('.css') ? style : script);
+    return res.end(route === '/style.css' ? style : route === '/icon.js' ? iconScript : script);
   }
   if (route === '/favicon.ico') { res.writeHead(204); return res.end(); }
   if (route === '/windows' || route.startsWith('/windows/')) {

@@ -45,9 +45,34 @@ function preview(input, image) {
   });
   image.addEventListener('error', () => { image.hidden = true; });
 }
-preview($('win-icon'), $('win-icon-preview'));
 preview($('win-cover'), $('win-cover-preview'));
-preview($('android-icon'), $('android-icon-preview'));
+function bindIcon(input, image, status, platform) {
+  let task = Promise.resolve(), result = null, error = null;
+  input.addEventListener('change', () => {
+    const file = input.files[0]; result = null; error = null; image.hidden = true;
+    if (!file) { status.textContent = ''; task = Promise.resolve(); return; }
+    status.textContent = '正在裁切和转换图标...';
+    const current = window.prepareIcon(file, platform).then(converted => {
+      if (task !== current) return;
+      result = converted; image.src = converted.preview; image.hidden = false;
+      status.textContent = platform === 'windows' ? '已生成 Windows ICO 图标' : '已生成 Android PNG 图标';
+    }).catch(reason => {
+      if (task !== current) return;
+      error = reason; status.textContent = reason.message;
+    });
+    task = current;
+  });
+  return async function getIcon() {
+    // Selection can change while conversion is pending; submit only the latest file.
+    let waiting;
+    do { waiting = task; await waiting; } while (waiting !== task);
+    if (error) throw error;
+    if (input.files[0] && !result) throw Error('图标尚未处理完成，请重新选择图片');
+    return result;
+  };
+}
+const windowsIcon = bindIcon($('win-icon'), $('win-icon-preview'), $('win-icon-status'), 'windows');
+const androidIcon = bindIcon($('android-icon'), $('android-icon-preview'), $('android-icon-status'), 'android');
 const winForm = $('windows-form');
 for (const radio of winForm.elements.coverMode) radio.addEventListener('change', () => {
   const online = winForm.elements.coverMode.value === 'url';
@@ -128,8 +153,10 @@ winForm.addEventListener('submit', async event => {
   try {
     const values = new FormData(winForm);
     const payload = { name: values.get('name'), remoteConfigUrl: values.get('remoteConfigUrl'), fallbackApi: values.get('fallbackApi'), browserId };
+    const icon = await windowsIcon();
+    if (icon) payload.icon = icon.base64;
     if (values.get('coverMode') === 'url') { payload.coverUrl = values.get('coverUrl'); if (!payload.coverUrl) throw Error('请输入在线封面地址'); }
-    for (const key of ['icon', ...(values.get('coverMode') === 'upload' ? ['cover'] : [])]) {
+    for (const key of values.get('coverMode') === 'upload' ? ['cover'] : []) {
       const file = values.get(key); if (file && file.size) payload[key] = await base64(file);
     }
     const result = await request('/windows/build', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -140,14 +167,6 @@ winForm.addEventListener('submit', async event => {
   finally { button.disabled = false; }
 });
 
-let androidIcon = '';
-$('android-icon').addEventListener('change', async () => {
-  androidIcon = ''; const file = $('android-icon').files[0]; if (!file) return;
-  if (file.size > 1048576) { $('android-message').textContent = '图标不能超过 1 MB'; return; }
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  if (bytes.length < 24 || String.fromCharCode(...bytes.slice(1, 4)) !== 'PNG' || new DataView(bytes.buffer).getUint32(16) !== new DataView(bytes.buffer).getUint32(20) || new DataView(bytes.buffer).getUint32(16) < 128 || new DataView(bytes.buffer).getUint32(16) > 1024) { $('android-message').textContent = '请选择 128-1024 像素的方形 PNG'; return; }
-  androidIcon = await base64(file); $('android-message').textContent = '';
-});
 async function refreshAndroid() {
   try {
     const [state, mine] = await Promise.all([request('/android/api/state'), request('/android/api/mine')]);
@@ -168,8 +187,9 @@ async function refreshAndroid() {
 $('android-form').addEventListener('submit', async event => {
   event.preventDefault(); const button = $('android-submit'); button.disabled = true; $('android-message').textContent = '正在提交...';
   try {
-    if (!androidIcon) throw Error('请先上传合格的 PNG 图标');
-    await request('/android/api/build', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: $('android-name').value, url: $('android-url').value, icon: androidIcon }) });
+    const icon = await androidIcon();
+    if (!icon) throw Error('请先选择图标图片');
+    await request('/android/api/build', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: $('android-name').value, url: $('android-url').value, icon: icon.base64 }) });
     $('android-message').textContent = '已加入 Android 队列'; refreshAndroid();
   } catch (error) { $('android-message').textContent = error.message; }
   finally { button.disabled = false; }

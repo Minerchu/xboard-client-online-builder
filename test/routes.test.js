@@ -19,6 +19,7 @@ test('one entry routes both independent builders', async () => {
     assert.match(code, /request\('\/windows\/build'/);
     assert.match(code, /request\('\/android\/api\/build'/);
     assert.equal((await fetch(base + '/style.css')).status, 200);
+    assert.equal((await fetch(base + '/icon.js')).status, 200);
     const win = await fetch(base + '/windows/');
     assert.equal(win.status, 200);
     assert.match(await win.text(), /fetch\('\/windows\/build'/);
