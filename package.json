@@ -1,0 +1,11 @@
+{
+  "name": "xboard-unified-builder",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node windows/builder/moderation.test.js && node windows/builder/moderation.integration.test.js && node --test android/test/validate.test.js && node --test test/*.test.js",
+    "preflight": "node preflight.js"
+  },
+  "engines": { "node": ">=20" }
+}

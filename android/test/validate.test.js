@@ -1,0 +1,10 @@
+'use strict';
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { validate } = require('../validate');
+const png = Buffer.alloc(33); Buffer.from('89504e470d0a1a0a', 'hex').copy(png); png.write('IHDR', 12); png.writeUInt32BE(256, 16); png.writeUInt32BE(256, 20);
+const input = { name: '我的客户端', url: 'https://example.com', icon: png.toString('base64') };
+test('normalizes root URL', () => assert.equal(validate(input).url, 'https://example.com/'));
+test('rejects paths and HTTP', () => { for (const url of ['http://example.com', 'https://example.com/api/v1', 'https://user:pass@example.com/']) assert.throws(() => validate({ ...input, url })); });
+test('rejects invalid branding', () => { for (const name of ['<script>', '赌博', 'a']) assert.throws(() => validate({ ...input, name })); });
+test('rejects non-square icon', () => { const copy = Buffer.from(png); copy.writeUInt32BE(255, 20); assert.throws(() => validate({ ...input, icon: copy.toString('base64') })); });

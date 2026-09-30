@@ -1,0 +1,11 @@
+{
+  "name": "xboard-android-builder",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "preflight": "node preflight.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=20" }
+}

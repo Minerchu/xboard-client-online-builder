@@ -1,0 +1,7 @@
+android/data/
+android/private/
+windows/builder/build-output/
+windows/builder/build-history.jsonl
+windows/client-template/
+*.apk
+*.jks
