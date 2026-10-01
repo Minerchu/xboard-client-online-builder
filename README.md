@@ -2,6 +2,13 @@
 
 一个网站、一个 Node 项目、一张网页，分别生成 Windows EXE/便携 ZIP 和 Android APK。两套构建队列独立处理，产物完成后保留 5 分钟，构建记录长期保存。
 
+## 客户端来源
+
+- **Windows 客户端基于潮汐客户端开发**：适配 Xboard，升级 Mihomo 内核，支持在线 JSON 配置、软件名称、图标和封面定制。
+- **安卓客户端基于萌通客户端开发**：保留原客户端界面与账号密码登录方式，适配 Xboard，集成 Mihomo 内核，支持软件名称和图标定制。
+
+本项目是上述客户端的适配与在线打包工具，并非从零开发的客户端。原客户端及第三方组件的版权和许可证归各自权利人所有。
+
 ## 下载完整部署包
 
 从 [GitHub Releases](https://github.com/Minerchu/xboard-client-online-builder/releases) 下载 Assets 中的 `xboard-unified-builder-baota.zip`，**不要下载 Source code ZIP 来部署**。源码仓库不包含大型客户端模板；完整部署包包含 Windows 模板、已修复的安卓 APK 模板和 apktool，不包含签名私钥和运行数据。
